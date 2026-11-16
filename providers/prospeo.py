@@ -8,13 +8,26 @@ load_dotenv()
 BASE_URL = "https://api.prospeo.io"
 
 
+def get_secret(key):
+    """Read from Streamlit Cloud Secrets or local environment."""
+    try:
+        import streamlit as st
+        value = st.secrets.get(key, "")
+        if value:
+            return str(value).strip()
+    except Exception:
+        pass
+
+    return os.getenv(key, "").strip()
+
+
 class ProspeoProvider:
 
     def __init__(self):
-        self.api_key = os.getenv("PROSPEO_API_KEY", "").strip()
+        self.api_key = get_secret("PROSPEO_API_KEY")
 
         if not self.api_key:
-            raise ValueError("Prospeo API key missing in .env")
+            raise ValueError("Prospeo API key missing in Streamlit Secrets or .env")
 
         self.headers = {
             "X-KEY": self.api_key,
@@ -54,8 +67,6 @@ class ProspeoProvider:
         response.raise_for_status()
         return response.json()
 
-
-
     def enrich_many(self, linkedin_urls):
         records = []
 
@@ -87,7 +98,6 @@ class ProspeoProvider:
         response.raise_for_status()
         return response.json()
 
-    
     def format_result(self, result, linkedin_url):
         person = result.get("person") or {}
         company = result.get("company") or {}
@@ -100,16 +110,10 @@ class ProspeoProvider:
             "company": company.get("name"),
             "company_website": company.get("website"),
             "company_domain": company.get("domain"),
-
-            # Email information
             "work_email": email.get("email"),
             "email_status": email.get("status", "UNAVAILABLE"),
-
-            # Phone information (not requested yet)
             "direct_phone": None,
             "phone_status": "NOT_REQUESTED",
             "phone_provider": "Prospeo",
-
             "provider": "Prospeo"
         }
-
